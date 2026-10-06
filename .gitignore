@@ -9,3 +9,4 @@ __pycache__/
 .pytest_cache/
 motor/salidas/
 .DS_Store
+public/maplibre/

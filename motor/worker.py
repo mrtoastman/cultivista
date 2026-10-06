@@ -36,16 +36,16 @@ def upsert_escena(cx, e):
       values (%s,%s,%s,%s,%s,%s,%s,%s) on conflict (proveedor,item_id) do update set nube_escena=excluded.nube_escena returning id""",
       (e.proveedor, e.item_id, e.tile, e.acquired_at, e.provider_published_at, e.epsg, e.processing_baseline, e.nube_escena)).fetchone()[0]
 
-def guardar_observacion(cx, lote_id, org_id, escena_db_id, obs):
+def guardar_observacion(cx, lote_id, org_id, escena_db_id, obs, fecha_obs):
     nd = obs.get("ndvi", {}); nm = obs.get("ndmi_20m", {})
     r = cx.execute("""insert into observaciones (lote_id,organizacion_id,escena_id,usable,pct_clasificado,pct_indice_valido,pct_vegetacion,pct_suelo,pct_agua,pct_nube_sombra,
-        n_px_scl,n_px_indice,scl_stats,ndvi_media,ndvi_mediana,ndvi_p10,ndvi_p90,ndvi_std,ndmi_mediana,otros_indices,processing_version,mask_version,algorithm_version)
-      values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-      on conflict (lote_id,escena_id,processing_version) do nothing returning id""",
+        n_px_scl,n_px_indice,scl_stats,ndvi_media,ndvi_mediana,ndvi_p10,ndvi_p90,ndvi_std,ndmi_mediana,otros_indices,processing_version,mask_version,algorithm_version,fecha_obs)
+      values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+      on conflict (lote_id,fecha_obs,processing_version) do nothing returning id""",
       (lote_id, org_id, escena_db_id, obs["usable"], obs.get("pct_clasificado"), obs.get("pct_indice_valido"), obs.get("pct_vegetacion"), obs.get("pct_suelo"),
        obs.get("pct_agua"), obs.get("pct_nube_sombra"), obs.get("n_px_scl"), obs.get("n_px_indice"), Jsonb({"clases": obs.get("clases"), "motivo": obs.get("motivo")}),
        nd.get("media"), nd.get("mediana"), nd.get("p10"), nd.get("p90"), nd.get("std"), nm.get("mediana"), Jsonb(obs.get("laboratorio")),
-       obs["processing_version"], obs["mask_version"], obs["algorithm_version"])).fetchone()
+       obs["processing_version"], obs["mask_version"], obs["algorithm_version"], fecha_obs)).fetchone()
     return r[0] if r else None
 
 def evaluar_y_guardar(cx, lote_id, org_id, obs_id, obs, cultivo, acquired_at):
@@ -70,11 +70,17 @@ def procesar_lote(cx, prov, lote_id, desde, hasta, log):
     escenas = prov.buscar_escenas(poli, desde.isoformat(), hasta.isoformat())
     log(f"lote {nombre}: {len(escenas)} escenas {desde}→{hasta}")
     usables = 0
+    # Tiles solapados (p. ej. 18NUK/18NUL) producen dos escenas el mismo día: se conserva UNA observación por fecha,
+    # la de mayor porcentaje de píxel válido en el lote (una observación por lote y día).
+    por_fecha = {}
     for e in escenas:
-        etapa = f"cog:{e.item_id}"
-        obs = analizar_lote(prov, e, poli)
+        por_fecha.setdefault(e.acquired_at.date(), []).append(e)
+    for fecha, grupo in sorted(por_fecha.items()):
+        etapa = f"cog:{grupo[0].item_id}"
+        candidatos = [(analizar_lote(prov, e, poli), e) for e in grupo]
+        obs, e = max(candidatos, key=lambda c: (c[0].get("pct_indice_valido") or 0, c[0].get("n_px_scl") or 0))
         esc_id = upsert_escena(cx, e)
-        obs_id = guardar_observacion(cx, lote_id, org_id, esc_id, obs)
+        obs_id = guardar_observacion(cx, lote_id, org_id, esc_id, obs, fecha)
         if obs_id and obs["usable"]:
             usables += 1
             ev = evaluar_y_guardar(cx, lote_id, org_id, obs_id, obs, cultivo, e.acquired_at)

@@ -1,0 +1,9 @@
+@import "tailwindcss";
+:root { --fondo: #f6f5f0; --tinta: #1d2b22; --verde: #1f6b3a; --verde-osc: #154d29; --tierra: #8a5a2b; --borde: #dcd9cf; }
+@theme inline { --color-fondo: var(--fondo); --color-tinta: var(--tinta); --color-verde: var(--verde); --color-verde-osc: var(--verde-osc); --color-tierra: var(--tierra); --color-borde: var(--borde); --font-sans: var(--font-geist-sans); }
+body { background: var(--fondo); color: var(--tinta); }
+.btn-primario { @apply inline-flex items-center justify-center rounded-md px-4 py-2.5 font-semibold text-sm transition bg-verde text-white hover:bg-verde-osc disabled:opacity-50; }
+.btn-secundario { @apply inline-flex items-center justify-center rounded-md px-4 py-2.5 font-semibold text-sm transition border border-borde bg-white hover:bg-stone-50 disabled:opacity-50; }
+.tarjeta { @apply rounded-lg border border-borde bg-white p-4; }
+.campo { @apply w-full rounded-md border border-borde bg-white px-3 py-2 text-base; }
+.etiqueta { @apply block text-xs font-semibold uppercase tracking-wide text-stone-600 mb-1; }
