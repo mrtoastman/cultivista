@@ -1,0 +1,13 @@
+{
+  "name": "cultivista",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "db:migrar": "node scripts/aplicar-migraciones.mjs",
+    "db:local:up": "docker run -d --name cultivista-pg -e POSTGRES_PASSWORD=cultivista -e POSTGRES_DB=postgres -p 54330:5432 postgis/postgis:17-3.5",
+    "db:local:migrar": "node scripts/aplicar-migraciones.mjs --local",
+    "test:rls": "node scripts/prueba-rls.mjs"
+  },
+  "devDependencies": { "pg": "^8.23.0" }
+}
