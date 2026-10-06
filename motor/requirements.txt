@@ -4,3 +4,4 @@ shapely>=2.0
 pyproj>=3.6
 pystac-client>=0.8
 pytest>=8
+psycopg[binary]>=3.2
